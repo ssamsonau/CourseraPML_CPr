@@ -25,6 +25,14 @@ dim(DF)
 
 ```r
 library(caret)
+```
+
+```
+## Loading required package: lattice
+## Loading required package: ggplot2
+```
+
+```r
 set.seed(123)
 inTrain = createDataPartition(DF$classe, p = 0.6)[[1]]
 TR = DF[ inTrain,] ;    VAL = DF[-inTrain,]
@@ -132,10 +140,31 @@ fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
 
 modFIT <- train(classe ~., data=training, method="gbm", metric = "Kappa",
                 trControl = fitControl, preProcess = c("knnImpute"))
+```
+
+```
+## Loading required package: gbm
+## Loading required package: survival
+## Loading required package: splines
+## 
+## Attaching package: 'survival'
+## 
+## The following object is masked from 'package:caret':
+## 
+##     cluster
+## 
+## Loading required package: parallel
+## Loaded gbm 2.1
+## Loading required package: plyr
+```
+
+```r
 print(modFIT$finalModel)
 ```
 
-Here is 95% confidence interval of accuracy based on results of cross-validation: 
+## Model Performance. Out of sample Error
+
+Bellow we print a 95% confidence interval of the accuracy based on results of a cross-validation. This give us an estimation for out of sample accuracy (which is connected to out of sample error, but is more useful in this case)
 
 
 ```r
@@ -145,11 +174,11 @@ print(AccConfInt)
 ```
 
 ```
-## [1] 0.9836 1.0003
+## [1] 0.9841 0.9989
 ```
 
 Results seem to be good.
-And now let us make prediction on validation data set.
+And now let us make prediction on validation data set. Again the accuracy of prediction is pretty good.
 
 
 ```r

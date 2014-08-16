@@ -109,7 +109,9 @@ modFIT <- train(classe ~., data=training, method="gbm", metric = "Kappa",
 print(modFIT$finalModel)
 ```
 
-Here is 95% confidence interval of accuracy based on results of cross-validation: 
+## Model Performance. Out of sample Error
+
+Bellow we print a 95% confidence interval of the accuracy based on results of a cross-validation. This give us an estimation for out of sample accuracy (which is connected to out of sample error, but is more useful in this case)
 
 ```{r}
 AccConfInt <- mean(unlist(modFIT$resample[1])) +
@@ -118,7 +120,7 @@ print(AccConfInt)
 ```
 
 Results seem to be good.
-And now let us make prediction on validation data set.
+And now let us make prediction on validation data set. Again the accuracy of prediction is pretty good.
 
 ```{r Validation, cache=TRUE}
 confusionMatrix(predict(modFIT, newdata=VAL), VAL[, "classe"])

@@ -197,7 +197,13 @@ dim(DF)
 <h2>Subsetting and dividing the data</h2>
 
 <pre><code class="r">library(caret)
-set.seed(123)
+</code></pre>
+
+<pre><code>## Loading required package: lattice
+## Loading required package: ggplot2
+</code></pre>
+
+<pre><code class="r">set.seed(123)
 inTrain = createDataPartition(DF$classe, p = 0.6)[[1]]
 TR = DF[ inTrain,] ;    VAL = DF[-inTrain,]
 </code></pre>
@@ -285,21 +291,40 @@ dim(training)
 
 modFIT &lt;- train(classe ~., data=training, method=&quot;gbm&quot;, metric = &quot;Kappa&quot;,
                 trControl = fitControl, preProcess = c(&quot;knnImpute&quot;))
-print(modFIT$finalModel)
 </code></pre>
 
-<p>Here is 95% confidence interval of accuracy based on results of cross-validation: </p>
+<pre><code>## Loading required package: gbm
+## Loading required package: survival
+## Loading required package: splines
+## 
+## Attaching package: &#39;survival&#39;
+## 
+## The following object is masked from &#39;package:caret&#39;:
+## 
+##     cluster
+## 
+## Loading required package: parallel
+## Loaded gbm 2.1
+## Loading required package: plyr
+</code></pre>
+
+<pre><code class="r">print(modFIT$finalModel)
+</code></pre>
+
+<h2>Model Performance. Out of sample Error</h2>
+
+<p>Bellow we print a 95% confidence interval of the accuracy based on results of a cross-validation. This give us an estimation for out of sample accuracy (which is connected to out of sample error, but is more useful in this case)</p>
 
 <pre><code class="r">AccConfInt &lt;- mean(unlist(modFIT$resample[1])) +
     c(-1, 1)*sd(unlist(modFIT$resample[1]))*qnorm(0.975)
 print(AccConfInt)
 </code></pre>
 
-<pre><code>## [1] 0.9836 1.0003
+<pre><code>## [1] 0.9841 0.9989
 </code></pre>
 
 <p>Results seem to be good.
-And now let us make prediction on validation data set.</p>
+And now let us make prediction on validation data set. Again the accuracy of prediction is pretty good.</p>
 
 <pre><code class="r">confusionMatrix(predict(modFIT, newdata=VAL), VAL[, &quot;classe&quot;])
 </code></pre>
