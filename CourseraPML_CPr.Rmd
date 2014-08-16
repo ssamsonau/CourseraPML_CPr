@@ -1,0 +1,125 @@
+---
+title: "CourseraPML_CP"
+output: html_document
+---
+
+# Prediction: how good an exersize is performed
+
+## Reading the data
+```{r ReadingData, cache=TRUE}
+if(!file.exists("pml-training.csv")){
+    URL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+    download.file(URL, "pml-training.csv", method="wget")    
+}
+DF <- read.csv("pml-training.csv" )
+dim(DF)
+```
+
+## Subsetting and dividing the data
+
+```{r, results='hide'}
+library(caret)
+set.seed(123)
+inTrain = createDataPartition(DF$classe, p = 0.6)[[1]]
+TR = DF[ inTrain,] ;    VAL = DF[-inTrain,]
+```
+
+Now we will remove data variables which, as we expect, should not influence a prediction.
+
+```{r}
+TR <- subset(TR, select=-X) #remove number of a case
+TR <- TR[, -grep("time", names(TR))]  #eliminate time variables
+TR <- TR[, -grep("user_name", names(TR))] #eliminate user name
+```
+
+### Factor variables
+Let us work with factor and numeric variables separately. Here is a subset of only factor variables:
+
+```{r}
+TRfac <- TR[, sapply(TR, is.factor)]
+```
+
+Now we can remove factors with too many levels. Probably we can convert some of such factors to numeric values, but may be we do not need to..
+
+```{r}
+#find factors with too many levels - hard to compute..
+TooManyLevels <- sapply(sapply(TRfac, levels), length) > 10
+TRfac <- TRfac[, ! TooManyLevels]
+```
+
+There are only two factor variables with meaningful values - let us remove other.
+
+```{r, results='hide'}
+##Find meaningful factors
+for (n in 1:dim(TRfac)[2]) print(table(TRfac[, n]));
+#only two factors have meaningfull values
+TRfac <- TRfac[, c("new_window", "classe")]
+```
+
+### Numeric variables
+For numeric variables we remove those close to zero and also those having too many NAs (more than a half).
+
+```{r}
+TRnum <- TR[, ! sapply(TR, is.factor)]
+TRnum <- as.data.frame(lapply(TRnum, as.numeric))
+
+#remove variables wich do not change (their variance is close to zero)
+zero_var_pos <- nearZeroVar(TRnum)
+TRnum <- subset(TRnum, select=-zero_var_pos)
+
+for (n in length(TRnum):1){
+    if ( sum( is.na(TRnum[ , n]) ) > dim(TRnum)[1]/2 )
+        TRnum <- TRnum[ ,-n];
+}
+```
+
+Now let us impute missing values. 
+
+```{r}
+PreObj <- preProcess(TRnum, method="knnImpute", k=5, na.remove=TRUE)
+TRnumPR <- predict(PreObj, TRnum)
+```
+
+For the imputed dataset we can calculate correlation and leave in dataset only the variables with a very week correlation.
+
+```{r}
+descrCor <- cor(TRnumPR); heatmap(descrCor)
+highlyCorDescr <- findCorrelation(descrCor, cutoff = 0.3)
+TRnumPR <- TRnumPR[, -highlyCorDescr]
+descrCor <- cor(TRnumPR) ;   heatmap(descrCor)
+```
+
+### Combining numeric and factor variables
+
+```{r}
+training <- cbind(TRnum[, -highlyCorDescr], TRfac)
+dim(training)
+```
+
+
+## Fitting the model
+
+For prediction model we will use Generalized Boosted Models (gbm) with K-fold cross-validation. Here we also use imputation. We use Kappa parameter instead of Accuracy for automatic model selection as a more conservative approach. 
+
+```{r modelFit, cache=TRUE, results='hide'}
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+
+modFIT <- train(classe ~., data=training, method="gbm", metric = "Kappa",
+                trControl = fitControl, preProcess = c("knnImpute"))
+print(modFIT$finalModel)
+```
+
+Here is 95% confidence interval of accuracy based on results of cross-validation: 
+
+```{r}
+AccConfInt <- mean(unlist(modFIT$resample[1])) +
+    c(-1, 1)*sd(unlist(modFIT$resample[1]))*qnorm(0.975)
+print(AccConfInt)
+```
+
+Results seem to be good.
+And now let us make prediction on validation data set.
+
+```{r Validation, cache=TRUE}
+confusionMatrix(predict(modFIT, newdata=VAL), VAL[, "classe"])
+```
